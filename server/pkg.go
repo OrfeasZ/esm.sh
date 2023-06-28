@@ -40,6 +40,59 @@ func validatePkgPath(pathname string) (pkg Pkg, query string, err error) {
 		version = v
 	}
 
+	/**
+	 * Combine subpath with query and parse as a query string.
+	 * The last part of the query string will be used as the subpath if it starts with a slash.
+	 * If it contains a slash and does not contain equals, the part after the slash will be
+	 * used as the subpath.
+	 *
+	 * This is to cover import_map use cases that contain slashes in the query string embedded
+	 * in the path. For the URL `https://esm.sh/example@1.2.3&alias=react:preact/compat` for
+	 * example, the subpath will be "compat", which results in wrong query string values.
+	 *
+	 * After re-combining the query and the subpath and parsing them as a query string, the
+	 * alias value is correctly preserved, since that part of the query string contains the
+	 * equals sign. The subpath then becomes empty.
+	 *
+	 * This also allows using relative imports in the import_map for URLs like these. For
+	 * example, if we wanted to use the above URL for relative imports, we would have to write
+	 * this in the import_map: `https://esm.sh/example@1.2.3&alias=react:preact/compat&/`
+	 *
+	 * A file request, eg. `https://esm.sh/example@latest&alias=react:preact/compat&/index`,
+	 * would result in the last part of the query string (`/index`, the part after the `&`)
+	 * being used as the subpath, since it starts with a slash.
+	 *
+	 * If the last argument of the query string doesn't have a value (and therefore no equals
+	 * sign), the part after the first slash will be used as the subpath. For example, the URL
+	 * `https://esm.sh/example@1.2.3&pin=v123&dev/index` would result in the subpath being
+	 * set to `index`.
+	 */
+	if query != "" {
+		// Combine the query with the subpath.
+		query = query + "/" + subpath
+		subpath = ""
+
+		parts := strings.Split(query, "&")
+
+		if len(parts) > 1 {
+			lastPart := parts[len(parts)-1]
+
+			if strings.HasPrefix(parts[len(parts)-1], "/") {
+				// If the last part of the query string starts with a slash, it will be used as
+				// the subpath.
+				subpath = lastPart[1:]
+				query = strings.Join(parts[:len(parts)-1], "&")
+			} else if strings.Contains(lastPart, "/") && !strings.Contains(lastPart, "=") {
+				// If the last part of the query string contains a slash and no equals sign,
+				// the part after the slash will be used as the subpath.
+				slashIndex := strings.Index(lastPart, "/")
+				subpath = lastPart[slashIndex+1:]
+				parts[len(parts)-1] = lastPart[:slashIndex]
+				query = strings.Join(parts, "&")
+			}
+		}
+	}
+
 	pkg = Pkg{
 		Name:       name,
 		Version:    version,
