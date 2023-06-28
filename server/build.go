@@ -810,7 +810,7 @@ rebuild:
 					}
 					t := &BuildTask{
 						BuildArgs: BuildArgs{
-							alias:          map[string]string{},
+							alias:          task.alias,
 							deps:           task.deps,
 							external:       task.external,
 							treeShaking:    newStringSet(), // remove `?exports` args
