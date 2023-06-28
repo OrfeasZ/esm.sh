@@ -813,6 +813,7 @@ rebuild:
 							alias:          task.alias,
 							deps:           task.deps,
 							external:       task.external,
+							keepNames:      task.keepNames,
 							treeShaking:    newStringSet(), // remove `?exports` args
 							conditions:     newStringSet(), // remove `?conditions` args
 							denoStdVersion: task.denoStdVersion,
